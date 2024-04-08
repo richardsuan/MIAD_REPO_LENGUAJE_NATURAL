@@ -1,0 +1,296 @@
+<html>
+<head>
+<title>S1TC1_arboles_ensamblajes.ipynb</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #7a7e85;}
+.s1 { color: #bcbec4;}
+.s2 { color: #cf8e6d;}
+.s3 { color: #bcbec4;}
+.s4 { color: #6aab73;}
+.s5 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+S1TC1_arboles_ensamblajes.ipynb</font>
+</center></td></tr></table>
+<pre><span class="s0">#%% md 
+</span><span class="s1">![image info](https://raw.githubusercontent.com/albahnsen/MIAD_ML_and_NLP/main/images/banner_1.png) 
+</span><span class="s0">#%% md 
+</span><span class="s1"># Taller: Construcción e implementación de árboles de decisión y métodos de ensamblaje 
+ 
+En este taller podrá poner en práctica los sus conocimientos sobre construcción e implementación de árboles de decisión y métodos de ensamblajes. El taller está constituido por 9 puntos, 5 relacionados con árboles de decisión (parte A) y 4 con métodos de ensamblaje (parte B). 
+</span><span class="s0">#%% md 
+</span><span class="s1">## Parte A - Árboles de decisión 
+ 
+En esta parte del taller se usará el conjunto de datos de Capital Bikeshare de Kaggle, donde cada observación representa el alquiler de bicicletas durante una hora y día determinado. Para más detalles puede visitar los siguientes enlaces: [datos](https://archive.ics.uci.edu/ml/machine-learning-databases/00275/Bike-Sharing-Dataset.zip), [dicccionario de datos](https://archive.ics.uci.edu/ml/datasets/Bike+Sharing+Dataset#). 
+</span><span class="s0">#%% md 
+</span><span class="s1">### Datos prestamo de bicicletas 
+</span><span class="s0">#%% 
+</span><span class="s2">import </span><span class="s1">warnings</span>
+<span class="s1">warnings</span><span class="s3">.</span><span class="s1">filterwarnings</span><span class="s3">(</span><span class="s4">'ignore'</span><span class="s3">)</span>
+<span class="s0">#%% 
+# Importación de librerías</span>
+<span class="s3">%</span><span class="s1">matplotlib inline</span>
+<span class="s2">import </span><span class="s1">pandas </span><span class="s2">as </span><span class="s1">pd</span>
+<span class="s2">import </span><span class="s1">seaborn </span><span class="s2">as </span><span class="s1">sns</span>
+<span class="s2">import </span><span class="s1">matplotlib</span><span class="s3">.</span><span class="s1">pyplot </span><span class="s2">as </span><span class="s1">plt</span>
+<span class="s2">import </span><span class="s1">numpy </span><span class="s2">as </span><span class="s1">np</span>
+<span class="s2">from </span><span class="s1">sklearn</span><span class="s3">.</span><span class="s1">model_selection </span><span class="s2">import </span><span class="s1">cross_val_score</span>
+<span class="s2">from </span><span class="s1">sklearn</span><span class="s3">.</span><span class="s1">linear_model </span><span class="s2">import </span><span class="s1">LinearRegression</span><span class="s3">, </span><span class="s1">LogisticRegression</span>
+<span class="s2">from </span><span class="s1">sklearn</span><span class="s3">.</span><span class="s1">tree </span><span class="s2">import </span><span class="s1">DecisionTreeRegressor</span><span class="s3">, </span><span class="s1">export_graphviz</span><span class="s3">,</span><span class="s1">DecisionTreeClassifier</span>
+<span class="s2">from </span><span class="s1">sklearn</span><span class="s3">.</span><span class="s1">metrics </span><span class="s2">import </span><span class="s1">mean_squared_error</span><span class="s3">,</span><span class="s1">accuracy_score</span><span class="s3">,</span><span class="s1">f1_score</span>
+<span class="s2">from </span><span class="s1">sklearn</span><span class="s3">.</span><span class="s1">model_selection </span><span class="s2">import </span><span class="s1">train_test_split</span>
+<span class="s0">#%% 
+# Lectura de la información de archivo .csv</span>
+<span class="s1">bikes </span><span class="s3">= </span><span class="s1">pd</span><span class="s3">.</span><span class="s1">read_csv</span><span class="s3">(</span><span class="s4">'https://raw.githubusercontent.com/davidzarruk/MIAD_ML_NLP_2023/main/datasets/bikeshare.csv'</span><span class="s3">, </span><span class="s1">index_col</span><span class="s3">=</span><span class="s4">'datetime'</span><span class="s3">, </span><span class="s1">parse_dates</span><span class="s3">=</span><span class="s2">True</span><span class="s3">)</span>
+
+<span class="s0"># Renombrar variable &quot;count&quot; a &quot;total&quot;</span>
+<span class="s1">bikes</span><span class="s3">.</span><span class="s1">rename</span><span class="s3">(</span><span class="s1">columns</span><span class="s3">={</span><span class="s4">'count'</span><span class="s3">:</span><span class="s4">'total'</span><span class="s3">}, </span><span class="s1">inplace</span><span class="s3">=</span><span class="s2">True</span><span class="s3">)</span>
+
+<span class="s0"># Crear la hora como una variable </span>
+<span class="s1">bikes</span><span class="s3">[</span><span class="s4">'hour'</span><span class="s3">] = </span><span class="s1">bikes</span><span class="s3">.</span><span class="s1">index</span><span class="s3">.</span><span class="s1">hour</span>
+
+<span class="s0"># Visualización de los datos</span>
+<span class="s1">bikes</span><span class="s3">.</span><span class="s1">head</span><span class="s3">()</span>
+<span class="s0">#%% md 
+</span><span class="s1">### Punto 1 - Análisis descriptivo 
+ 
+Ejecute las celdas 1.1 y 1.2. A partir de los resultados realice un análisis descriptivo sobre las variables &quot;season&quot; y &quot;hour&quot;, escriba sus inferencias sobre los datos. Para complementar su análisis puede usar métricas como máximo, mínimo, percentiles entre otros. 
+</span><span class="s0">#%% 
+# Celda 1.1</span>
+<span class="s1">bikes</span><span class="s3">.</span><span class="s1">groupby</span><span class="s3">(</span><span class="s4">'season'</span><span class="s3">).</span><span class="s1">total</span><span class="s3">.</span><span class="s1">mean</span><span class="s3">()</span>
+<span class="s0">#%% 
+# Celda 1.2</span>
+<span class="s1">bikes</span><span class="s3">.</span><span class="s1">groupby</span><span class="s3">(</span><span class="s4">'hour'</span><span class="s3">).</span><span class="s1">total</span><span class="s3">.</span><span class="s1">mean</span><span class="s3">()</span>
+<span class="s0">#%% 
+</span><span class="s1">bikes</span><span class="s3">.</span><span class="s1">describe</span><span class="s3">()</span>
+<span class="s0">#%% 
+</span><span class="s1">plt</span><span class="s3">.</span><span class="s1">figure</span><span class="s3">(</span><span class="s1">figsize</span><span class="s3">=(</span><span class="s5">12</span><span class="s3">, </span><span class="s5">6</span><span class="s3">))</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">subplot</span><span class="s3">(</span><span class="s5">1</span><span class="s3">, </span><span class="s5">2</span><span class="s3">, </span><span class="s5">1</span><span class="s3">)</span>
+<span class="s1">hours_counts </span><span class="s3">= </span><span class="s1">bikes</span><span class="s3">[</span><span class="s4">'hour'</span><span class="s3">].</span><span class="s1">value_counts</span><span class="s3">()</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">pie</span><span class="s3">(</span><span class="s1">hours_counts</span><span class="s3">, </span><span class="s1">labels</span><span class="s3">=</span><span class="s1">hours_counts</span><span class="s3">.</span><span class="s1">index</span><span class="s3">, </span><span class="s1">autopct</span><span class="s3">=</span><span class="s4">'%1.1f%%'</span><span class="s3">, </span><span class="s1">startangle</span><span class="s3">=</span><span class="s5">140</span><span class="s3">)</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">title</span><span class="s3">(</span><span class="s4">'Distribución de Horas'</span><span class="s3">)</span>
+
+<span class="s0"># Gráfico de torta para la temporada</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">subplot</span><span class="s3">(</span><span class="s5">1</span><span class="s3">, </span><span class="s5">2</span><span class="s3">, </span><span class="s5">2</span><span class="s3">)</span>
+<span class="s1">season_counts </span><span class="s3">= </span><span class="s1">bikes</span><span class="s3">[</span><span class="s4">'season'</span><span class="s3">].</span><span class="s1">value_counts</span><span class="s3">()</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">pie</span><span class="s3">(</span><span class="s1">season_counts</span><span class="s3">, </span><span class="s1">labels</span><span class="s3">=</span><span class="s1">season_counts</span><span class="s3">.</span><span class="s1">index</span><span class="s3">, </span><span class="s1">autopct</span><span class="s3">=</span><span class="s4">'%1.1f%%'</span><span class="s3">, </span><span class="s1">startangle</span><span class="s3">=</span><span class="s5">140</span><span class="s3">)</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">title</span><span class="s3">(</span><span class="s4">'Distribución de Temporada'</span><span class="s3">)</span>
+
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">tight_layout</span><span class="s3">()</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">show</span><span class="s3">()</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">--- 
+En los datos correspondientes a las estaciones, existen únicamente cuatro temporadas numeradas del uno al cuatro, representando respectivamente invierno, primavera, verano y otoño. Se cuenta con un total de 10,886 registros, mostrando una distribución uniforme de los datos para cada temporada. 
+ 
+Por otro lado, se presenta la distribución de las horas, que también muestra una distribución uniforme que abarca desde las 0 hasta las 23 horas, con igualmente 10,886 datos. 
+</span><span class="s0">#%% md 
+</span><span class="s1">### Punto 2 - Análisis de gráficos 
+ 
+Primero ejecute la celda 2.1 y asegúrese de comprender el código y el resultado. Luego, en cada una de celdas 2.2 y 2.3 escriba un código que genere una gráfica del número de bicicletas rentadas promedio para cada valor de la variable &quot;hour&quot; (hora) cuando la variable &quot;season&quot; es igual a 1 (invierno) e igual a 3 (verano), respectivamente. Analice y escriba sus hallazgos. 
+</span><span class="s0">#%% 
+# Celda 2.1 - rentas promedio para cada valor de la variable &quot;hour&quot;</span>
+<span class="s1">bikes</span><span class="s3">.</span><span class="s1">groupby</span><span class="s3">(</span><span class="s4">'hour'</span><span class="s3">).</span><span class="s1">total</span><span class="s3">.</span><span class="s1">mean</span><span class="s3">().</span><span class="s1">plot</span><span class="s3">()</span>
+<span class="s0">#%% 
+# Celda 2.2 - &quot;season&quot;=1 escriba su código y hallazgos </span>
+<span class="s1">bikes</span><span class="s3">[</span><span class="s1">bikes</span><span class="s3">[</span><span class="s4">'season'</span><span class="s3">] == </span><span class="s5">1</span><span class="s3">].</span><span class="s1">groupby</span><span class="s3">(</span><span class="s4">'hour'</span><span class="s3">).</span><span class="s1">total</span><span class="s3">.</span><span class="s1">mean</span><span class="s3">().</span><span class="s1">plot</span><span class="s3">() </span>
+
+<span class="s0">#%% 
+# Celda 2.3 - &quot;season&quot;=3 escriba su código y hallazgos verano</span>
+<span class="s1">bikes</span><span class="s3">[</span><span class="s1">bikes</span><span class="s3">[</span><span class="s4">'season'</span><span class="s3">] == </span><span class="s5">3</span><span class="s3">].</span><span class="s1">groupby</span><span class="s3">(</span><span class="s4">'hour'</span><span class="s3">).</span><span class="s1">total</span><span class="s3">.</span><span class="s1">mean</span><span class="s3">().</span><span class="s1">plot</span><span class="s3">() </span>
+<span class="s0">#%% md 
+</span><span class="s1">Al comparar el resultrado obtenido de la comparacion de invierno y verano, se puede observar que en promedio se rentan mas bicicletas en vernano que en invierno   
+</span><span class="s0">#%% md 
+</span><span class="s1">### Punto 3 - Regresión lineal 
+En la celda 3 ajuste un modelo de regresión lineal a todo el conjunto de datos, utilizando &quot;total&quot; como variable de respuesta y &quot;season&quot; y &quot;hour&quot; como las únicas variables predictoras, teniendo en cuenta que la variable &quot;season&quot; es categórica. Luego, imprima los coeficientes e interprételos. ¿Cuáles son las limitaciones de la regresión lineal en este caso? 
+</span><span class="s0">#%% 
+# Celda 3</span>
+<span class="s1">X </span><span class="s3">= </span><span class="s1">bikes</span><span class="s3">[[</span><span class="s4">'hour'</span><span class="s3">, </span><span class="s4">'season'</span><span class="s3">]]</span>
+<span class="s1">y </span><span class="s3">= </span><span class="s1">bikes</span><span class="s3">[</span><span class="s4">'total'</span><span class="s3">]</span>
+<span class="s1">X_train</span><span class="s3">, </span><span class="s1">X_test</span><span class="s3">, </span><span class="s1">y_train</span><span class="s3">, </span><span class="s1">y_test </span><span class="s3">= </span><span class="s1">train_test_split</span><span class="s3">(</span><span class="s1">X</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">test_size</span><span class="s3">=</span><span class="s5">0.2</span><span class="s3">, </span><span class="s1">random_state</span><span class="s3">=</span><span class="s5">1</span><span class="s3">)</span>
+<span class="s1">model </span><span class="s3">= </span><span class="s1">LinearRegression</span><span class="s3">()</span>
+<span class="s1">model</span><span class="s3">.</span><span class="s1">fit</span><span class="s3">(</span><span class="s1">X_train</span><span class="s3">, </span><span class="s1">y_train</span><span class="s3">)</span>
+<span class="s0">#%% 
+</span><span class="s1">print</span><span class="s3">(</span><span class="s4">&quot;Coeficientes:&quot;</span><span class="s3">)</span>
+<span class="s2">for </span><span class="s1">coef</span><span class="s3">, </span><span class="s1">feature </span><span class="s2">in </span><span class="s1">zip</span><span class="s3">(</span><span class="s1">model</span><span class="s3">.</span><span class="s1">coef_</span><span class="s3">, </span><span class="s1">X</span><span class="s3">.</span><span class="s1">columns</span><span class="s3">):</span>
+    <span class="s1">print</span><span class="s3">(</span><span class="s4">f&quot;</span><span class="s2">{</span><span class="s1">feature</span><span class="s2">}</span><span class="s4">: </span><span class="s2">{</span><span class="s1">coef</span><span class="s2">}</span><span class="s4">&quot;</span><span class="s3">)</span>
+<span class="s1">y_pred </span><span class="s3">= </span><span class="s1">model</span><span class="s3">.</span><span class="s1">predict</span><span class="s3">(</span><span class="s1">X_test</span><span class="s3">)</span>
+
+<span class="s0"># Calcular el error cuadrático medio</span>
+<span class="s1">mse_linear </span><span class="s3">= </span><span class="s1">mean_squared_error</span><span class="s3">(</span><span class="s1">y_test</span><span class="s3">, </span><span class="s1">y_pred</span><span class="s3">)</span>
+<span class="s1">print</span><span class="s3">(</span><span class="s4">f&quot;Error cuadrático medio: </span><span class="s2">{</span><span class="s1">mse_linear</span><span class="s2">}</span><span class="s4">&quot;</span><span class="s3">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">Cuando todas las otras variables se quedan constantes cuando cambia la hora el total se ve afectado en 10.5 unidades por otro lado cuando todas las otras variables se quedan constantes y cambia la temporada el total cambia en 26.9 unidades. 
+</span><span class="s0">#%% md 
+</span><span class="s1">### Punto 4 - Árbol de decisión manual 
+En la celda 4 cree un árbol de decisiones para pronosticar la variable &quot;total&quot; iterando **manualmente** sobre las variables &quot;hour&quot; y  &quot;season&quot;. El árbol debe tener al menos 6 nodos finales. 
+</span><span class="s0">#%% 
+</span><span class="s2">def </span><span class="s1">calcular_varianza</span><span class="s3">(</span><span class="s1">y</span><span class="s3">):</span>
+    <span class="s2">return </span><span class="s1">np</span><span class="s3">.</span><span class="s1">var</span><span class="s3">(</span><span class="s1">y</span><span class="s3">)</span>
+
+<span class="s2">def </span><span class="s1">dividir</span><span class="s3">(</span><span class="s1">X</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">variable</span><span class="s3">, </span><span class="s1">valor</span><span class="s3">):</span>
+    <span class="s2">if </span><span class="s1">variable </span><span class="s3">== </span><span class="s4">&quot;hour&quot;</span><span class="s3">:</span>
+        <span class="s1">izquierda_idx </span><span class="s3">= </span><span class="s1">X</span><span class="s3">[</span><span class="s4">'hour'</span><span class="s3">] &lt;= </span><span class="s1">valor</span>
+    <span class="s2">else</span><span class="s3">:  </span><span class="s0"># variable == &quot;season&quot;</span>
+        <span class="s1">izquierda_idx </span><span class="s3">= </span><span class="s1">X</span><span class="s3">[</span><span class="s4">'season'</span><span class="s3">] == </span><span class="s1">valor</span>
+    <span class="s2">return </span><span class="s1">X</span><span class="s3">[</span><span class="s1">izquierda_idx</span><span class="s3">], </span><span class="s1">y</span><span class="s3">[</span><span class="s1">izquierda_idx</span><span class="s3">], </span><span class="s1">X</span><span class="s3">[~</span><span class="s1">izquierda_idx</span><span class="s3">], </span><span class="s1">y</span><span class="s3">[~</span><span class="s1">izquierda_idx</span><span class="s3">]</span>
+
+<span class="s2">def </span><span class="s1">mejor_division</span><span class="s3">(</span><span class="s1">X</span><span class="s3">, </span><span class="s1">y</span><span class="s3">):</span>
+    <span class="s1">mejor_varianza </span><span class="s3">= </span><span class="s1">float</span><span class="s3">(</span><span class="s4">'inf'</span><span class="s3">)</span>
+    <span class="s1">mejor_variable </span><span class="s3">= </span><span class="s2">None</span>
+    <span class="s1">mejor_valor </span><span class="s3">= </span><span class="s2">None</span>
+    <span class="s2">for </span><span class="s1">variable </span><span class="s2">in </span><span class="s1">X</span><span class="s3">.</span><span class="s1">columns</span><span class="s3">:</span>
+        <span class="s1">valores </span><span class="s3">= </span><span class="s1">X</span><span class="s3">[</span><span class="s1">variable</span><span class="s3">].</span><span class="s1">unique</span><span class="s3">()</span>
+        <span class="s2">for </span><span class="s1">valor </span><span class="s2">in </span><span class="s1">valores</span><span class="s3">:</span>
+            <span class="s1">_</span><span class="s3">, </span><span class="s1">y_izq</span><span class="s3">, </span><span class="s1">_</span><span class="s3">, </span><span class="s1">y_der </span><span class="s3">= </span><span class="s1">dividir</span><span class="s3">(</span><span class="s1">X</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">variable</span><span class="s3">, </span><span class="s1">valor</span><span class="s3">)</span>
+            <span class="s1">varianza_total </span><span class="s3">= </span><span class="s1">calcular_varianza</span><span class="s3">(</span><span class="s1">y_izq</span><span class="s3">) * </span><span class="s1">len</span><span class="s3">(</span><span class="s1">y_izq</span><span class="s3">) + </span><span class="s1">calcular_varianza</span><span class="s3">(</span><span class="s1">y_der</span><span class="s3">) * </span><span class="s1">len</span><span class="s3">(</span><span class="s1">y_der</span><span class="s3">)</span>
+            <span class="s2">if </span><span class="s1">varianza_total </span><span class="s3">&lt; </span><span class="s1">mejor_varianza</span><span class="s3">:</span>
+                <span class="s1">mejor_varianza </span><span class="s3">= </span><span class="s1">varianza_total</span>
+                <span class="s1">mejor_variable </span><span class="s3">= </span><span class="s1">variable</span>
+                <span class="s1">mejor_valor </span><span class="s3">= </span><span class="s1">valor</span>
+    <span class="s2">return </span><span class="s1">mejor_variable</span><span class="s3">, </span><span class="s1">mejor_valor</span>
+
+<span class="s2">def </span><span class="s1">construir_arbol</span><span class="s3">(</span><span class="s1">X</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">nodo</span><span class="s3">=</span><span class="s2">None</span><span class="s3">, </span><span class="s1">profundidad</span><span class="s3">=</span><span class="s5">0</span><span class="s3">, </span><span class="s1">max_profundidad</span><span class="s3">=</span><span class="s5">3</span><span class="s3">):</span>
+    <span class="s2">if </span><span class="s1">profundidad </span><span class="s3">== </span><span class="s1">max_profundidad </span><span class="s2">or </span><span class="s1">len</span><span class="s3">(</span><span class="s1">X</span><span class="s3">) &lt; </span><span class="s5">2</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s1">np</span><span class="s3">.</span><span class="s1">mean</span><span class="s3">(</span><span class="s1">y</span><span class="s3">)</span>
+    
+    <span class="s1">variable</span><span class="s3">, </span><span class="s1">valor </span><span class="s3">= </span><span class="s1">mejor_division</span><span class="s3">(</span><span class="s1">X</span><span class="s3">, </span><span class="s1">y</span><span class="s3">)</span>
+    <span class="s2">if </span><span class="s1">nodo </span><span class="s2">is None</span><span class="s3">:</span>
+        <span class="s1">nodo </span><span class="s3">= {}</span>
+    <span class="s1">nodo</span><span class="s3">[</span><span class="s4">'variable'</span><span class="s3">] = </span><span class="s1">variable</span>
+    <span class="s1">nodo</span><span class="s3">[</span><span class="s4">'valor'</span><span class="s3">] = </span><span class="s1">valor</span>
+    
+    <span class="s1">X_izq</span><span class="s3">, </span><span class="s1">y_izq</span><span class="s3">, </span><span class="s1">X_der</span><span class="s3">, </span><span class="s1">y_der </span><span class="s3">= </span><span class="s1">dividir</span><span class="s3">(</span><span class="s1">X</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">variable</span><span class="s3">, </span><span class="s1">valor</span><span class="s3">)</span>
+    <span class="s1">nodo</span><span class="s3">[</span><span class="s4">'izquierda'</span><span class="s3">] = </span><span class="s1">construir_arbol</span><span class="s3">(</span><span class="s1">X_izq</span><span class="s3">, </span><span class="s1">y_izq</span><span class="s3">, {}, </span><span class="s1">profundidad </span><span class="s3">+ </span><span class="s5">1</span><span class="s3">, </span><span class="s1">max_profundidad</span><span class="s3">)</span>
+    <span class="s1">nodo</span><span class="s3">[</span><span class="s4">'derecha'</span><span class="s3">] = </span><span class="s1">construir_arbol</span><span class="s3">(</span><span class="s1">X_der</span><span class="s3">, </span><span class="s1">y_der</span><span class="s3">, {}, </span><span class="s1">profundidad </span><span class="s3">+ </span><span class="s5">1</span><span class="s3">, </span><span class="s1">max_profundidad</span><span class="s3">)</span>
+    
+    <span class="s2">return </span><span class="s1">nodo</span>
+
+<span class="s0"># Ejemplo de uso</span>
+<span class="s1">arbol </span><span class="s3">= </span><span class="s1">construir_arbol</span><span class="s3">(</span><span class="s1">X_train</span><span class="s3">, </span><span class="s1">y_train</span><span class="s3">, </span><span class="s1">max_profundidad</span><span class="s3">=</span><span class="s5">3</span><span class="s3">)</span>
+<span class="s1">print</span><span class="s3">(</span><span class="s1">arbol</span><span class="s3">)</span>
+
+<span class="s0">#%% 
+</span><span class="s2">def </span><span class="s1">predecir_con_arbol</span><span class="s3">(</span><span class="s1">observacion</span><span class="s3">, </span><span class="s1">nodo</span><span class="s3">):</span>
+    <span class="s0"># Si el nodo es una hoja (nodo final), devuelve el valor</span>
+    <span class="s2">if not </span><span class="s1">isinstance</span><span class="s3">(</span><span class="s1">nodo</span><span class="s3">, </span><span class="s1">dict</span><span class="s3">):</span>
+        <span class="s2">return </span><span class="s1">nodo</span>
+    
+    <span class="s0"># Decide si moverse hacia el nodo izquierdo o derecho</span>
+    <span class="s2">if </span><span class="s1">observacion</span><span class="s3">[</span><span class="s1">nodo</span><span class="s3">[</span><span class="s4">'variable'</span><span class="s3">]] &lt;= </span><span class="s1">nodo</span><span class="s3">[</span><span class="s4">'valor'</span><span class="s3">]:</span>
+        <span class="s2">return </span><span class="s1">predecir_con_arbol</span><span class="s3">(</span><span class="s1">observacion</span><span class="s3">, </span><span class="s1">nodo</span><span class="s3">[</span><span class="s4">'izquierda'</span><span class="s3">])</span>
+    <span class="s2">else</span><span class="s3">:</span>
+        <span class="s2">return </span><span class="s1">predecir_con_arbol</span><span class="s3">(</span><span class="s1">observacion</span><span class="s3">, </span><span class="s1">nodo</span><span class="s3">[</span><span class="s4">'derecha'</span><span class="s3">])</span>
+
+<span class="s1">predicciones </span><span class="s3">= </span><span class="s1">X_test</span><span class="s3">.</span><span class="s1">apply</span><span class="s3">(</span><span class="s2">lambda </span><span class="s1">obs</span><span class="s3">: </span><span class="s1">predecir_con_arbol</span><span class="s3">(</span><span class="s1">obs</span><span class="s3">, </span><span class="s1">arbol</span><span class="s3">), </span><span class="s1">axis</span><span class="s3">=</span><span class="s5">1</span><span class="s3">)</span>
+<span class="s1">predicciones</span>
+<span class="s0">#%% 
+</span><span class="s1">mse_linear_tree </span><span class="s3">= </span><span class="s1">mean_squared_error</span><span class="s3">(</span><span class="s1">y_test</span><span class="s3">, </span><span class="s1">predicciones</span><span class="s3">)</span>
+<span class="s1">print</span><span class="s3">(</span><span class="s4">f&quot;Error cuadrático medio: </span><span class="s2">{</span><span class="s1">mse_linear_tree</span><span class="s2">}</span><span class="s4">&quot;</span><span class="s3">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">### Punto 5 - Árbol de decisión con librería 
+En la celda 5 entrene un árbol de decisiones con la **librería sklearn**, usando las variables predictoras &quot;season&quot; y &quot;hour&quot; y calibre los parámetros que considere conveniente para obtener un mejor desempeño. Recuerde dividir los datos en conjuntos de entrenamiento y validación para esto. Comente el desempeño del modelo con alguna métrica de desempeño de modelos de regresión y compare desempeño con el modelo del punto 3. 
+</span><span class="s0">#%% 
+# Celda 5</span>
+<span class="s1">modelo_libreria </span><span class="s3">= </span><span class="s1">DecisionTreeRegressor</span><span class="s3">(</span><span class="s1">max_depth</span><span class="s3">=</span><span class="s5">10</span><span class="s3">)</span>
+<span class="s1">modelo_libreria</span><span class="s3">.</span><span class="s1">fit</span><span class="s3">(</span><span class="s1">X_train</span><span class="s3">, </span><span class="s1">y_train</span><span class="s3">)</span>
+<span class="s1">predicciones_libreria </span><span class="s3">= </span><span class="s1">modelo_libreria</span><span class="s3">.</span><span class="s1">predict</span><span class="s3">(</span><span class="s1">X_test</span><span class="s3">)</span>
+<span class="s1">mse_arbol_libreria </span><span class="s3">= </span><span class="s1">mean_squared_error</span><span class="s3">(</span><span class="s1">y_test</span><span class="s3">, </span><span class="s1">predicciones_libreria</span><span class="s3">)</span>
+<span class="s1">mse_arbol_libreria</span>
+<span class="s0">#%% 
+</span><span class="s1">x </span><span class="s3">= [</span><span class="s4">&quot;regresion lineal&quot;</span><span class="s3">, </span><span class="s4">&quot;arbol manual&quot;</span><span class="s3">, </span><span class="s4">&quot;arbol libreria&quot;</span><span class="s3">]</span>
+<span class="s1">y </span><span class="s3">= [</span><span class="s1">mse_linear</span><span class="s3">, </span><span class="s1">mse_linear_tree</span><span class="s3">, </span><span class="s1">mse_arbol_libreria</span><span class="s3">]</span>
+
+<span class="s0"># Gráfico de barras</span>
+<span class="s1">fig</span><span class="s3">, </span><span class="s1">ax </span><span class="s3">= </span><span class="s1">plt</span><span class="s3">.</span><span class="s1">subplots</span><span class="s3">()</span>
+<span class="s1">ax</span><span class="s3">.</span><span class="s1">bar</span><span class="s3">(</span><span class="s1">x </span><span class="s3">= </span><span class="s1">x</span><span class="s3">, </span><span class="s1">height </span><span class="s3">= </span><span class="s1">y</span><span class="s3">)</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">title</span><span class="s3">(</span><span class="s4">&quot;comparacion del MSE&quot;</span><span class="s3">)</span>
+<span class="s1">plt</span><span class="s3">.</span><span class="s1">show</span><span class="s3">()</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">al realizar la comparattiva de los 3 modelos se puede obervar que el mejor modelo es el del arbol ya que presenta un mejor rendiemiento en comparacion a al modelo de regresion lineal ademas de esto se observa que el que tiene un mejor desempeño es el modelo que viene optimizado en la libreria ya que este tiene un MSE de 0.2 
+</span><span class="s0">#%% md 
+</span><span class="s1">## Parte B - Métodos de ensamblajes 
+En esta parte del taller se usará el conjunto de datos de Popularidad de Noticias Online. El objetivo es predecir si la notica es popular o no, la popularidad está dada por la cantidad de reacciones en redes sociales. Para más detalles puede visitar el siguiente enlace: [datos](https://archive.ics.uci.edu/ml/datasets/online+news+popularity). 
+</span><span class="s0">#%% md 
+</span><span class="s1">### Datos popularidad de noticias 
+</span><span class="s0">#%% 
+# Lectura de la información de archivo .csv</span>
+<span class="s1">df </span><span class="s3">= </span><span class="s1">pd</span><span class="s3">.</span><span class="s1">read_csv</span><span class="s3">(</span><span class="s4">'https://raw.githubusercontent.com/davidzarruk/MIAD_ML_NLP_2023/main/datasets/mashable.csv'</span><span class="s3">, </span><span class="s1">index_col</span><span class="s3">=</span><span class="s5">0</span><span class="s3">)</span>
+<span class="s1">df</span><span class="s3">.</span><span class="s1">head</span><span class="s3">()</span>
+<span class="s0">#%% 
+# Definición variable de interes y variables predictoras</span>
+<span class="s1">X </span><span class="s3">= </span><span class="s1">df</span><span class="s3">.</span><span class="s1">drop</span><span class="s3">([</span><span class="s4">'url'</span><span class="s3">, </span><span class="s4">'Popular'</span><span class="s3">], </span><span class="s1">axis</span><span class="s3">=</span><span class="s5">1</span><span class="s3">)</span>
+<span class="s1">y </span><span class="s3">= </span><span class="s1">df</span><span class="s3">[</span><span class="s4">'Popular'</span><span class="s3">]</span>
+<span class="s1">y</span><span class="s3">.</span><span class="s1">mean</span><span class="s3">()</span>
+<span class="s0">#%% 
+# División de la muestra en set de entrenamiento y prueba</span>
+<span class="s1">X_train</span><span class="s3">, </span><span class="s1">X_test</span><span class="s3">, </span><span class="s1">y_train</span><span class="s3">, </span><span class="s1">y_test </span><span class="s3">= </span><span class="s1">train_test_split</span><span class="s3">(</span><span class="s1">X</span><span class="s3">, </span><span class="s1">y</span><span class="s3">, </span><span class="s1">random_state</span><span class="s3">=</span><span class="s5">1</span><span class="s3">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">### Punto 6 - Árbol de decisión y regresión logística 
+En la celda 6 construya un árbol de decisión y una regresión logística. Para el árbol calibre al menos un parámetro y evalúe el desempeño de cada modelo usando las métricas de Accuracy y F1-Score. 
+</span><span class="s0">#%% 
+# Celda 6</span>
+<span class="s1">logistic_regression_model </span><span class="s3">= </span><span class="s1">LogisticRegression</span><span class="s3">(</span><span class="s1">max_iter</span><span class="s3">=</span><span class="s5">50</span><span class="s3">)</span>
+<span class="s1">logistic_regression_model</span><span class="s3">.</span><span class="s1">fit</span><span class="s3">(</span><span class="s1">X_train</span><span class="s3">,</span><span class="s1">y_train</span><span class="s3">)</span>
+<span class="s1">predic_logistic</span><span class="s3">= </span><span class="s1">logistic_regression_model</span><span class="s3">.</span><span class="s1">predict</span><span class="s3">(</span><span class="s1">X_test</span><span class="s3">)</span>
+<span class="s1">accuracy_logistic </span><span class="s3">= </span><span class="s1">accuracy_score</span><span class="s3">(</span><span class="s1">y_test</span><span class="s3">, </span><span class="s1">predic_logistic</span><span class="s3">)</span>
+<span class="s1">f1_logistic </span><span class="s3">= </span><span class="s1">f1_score</span><span class="s3">(</span><span class="s1">y_test</span><span class="s3">, </span><span class="s1">predic_logistic</span><span class="s3">)</span>
+
+<span class="s0">#%% 
+</span><span class="s1">decision_tree_classifer </span><span class="s3">= </span><span class="s1">DecisionTreeClassifier</span><span class="s3">(</span><span class="s1">max_depth</span><span class="s3">=</span><span class="s5">10</span><span class="s3">)</span>
+<span class="s1">decision_tree_classifer</span><span class="s3">.</span><span class="s1">fit</span><span class="s3">(</span><span class="s1">X_train</span><span class="s3">,</span><span class="s1">y_train</span><span class="s3">)</span>
+<span class="s1">predic_tree </span><span class="s3">= </span><span class="s1">decision_tree_classifer</span><span class="s3">.</span><span class="s1">predict</span><span class="s3">(</span><span class="s1">X_test</span><span class="s3">)</span>
+<span class="s1">accuracy_tree </span><span class="s3">= </span><span class="s1">accuracy_score</span><span class="s3">(</span><span class="s1">y_test</span><span class="s3">, </span><span class="s1">predic_tree</span><span class="s3">)</span>
+<span class="s1">f1_tree </span><span class="s3">=</span><span class="s1">f1_score</span><span class="s3">(</span><span class="s1">y_test</span><span class="s3">, </span><span class="s1">predic_tree</span><span class="s3">)</span>
+<span class="s0">#%% 
+</span><span class="s1">print</span><span class="s3">(</span><span class="s4">f'accuracy logistic:</span><span class="s2">{</span><span class="s1">accuracy_logistic</span><span class="s2">} </span><span class="s4">tree:</span><span class="s2">{</span><span class="s1">accuracy_tree</span><span class="s2">}</span><span class="s4">'</span><span class="s3">)</span>
+<span class="s1">print</span><span class="s3">(</span><span class="s4">f'f1 logistic:</span><span class="s2">{</span><span class="s1">f1_logistic</span><span class="s2">} </span><span class="s4">tree:</span><span class="s2">{</span><span class="s1">f1_tree</span><span class="s2">}</span><span class="s4">'</span><span class="s3">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">Al hacer la comparacion de los modelos el mejor modelo es de regresion logistica 
+</span><span class="s0">#%% md 
+</span><span class="s1">### Punto 7 - Votación Mayoritaria 
+En la celda 7 elabore un esamble con la metodología de **Votación mayoritaria** compuesto por 300 muestras bagged donde: 
+ 
+-las primeras 100 muestras vienen de árboles de decisión donde max_depth tome un valor de su elección\ 
+-las segundas 100 muestras vienen de árboles de decisión donde min_samples_leaf tome un valor de su elección\ 
+-las últimas 100 muestras vienen de regresiones logísticas 
+ 
+Evalúe cada uno de los tres modelos de manera independiente utilizando las métricas de Accuracy y F1-Score, luego evalúe el ensamble de modelos y compare los resultados.  
+ 
+Nota:  
+ 
+Para este ensamble de 300 modelos, deben hacer votación mayoritaria. Esto lo pueden hacer de distintas maneras. La más &quot;fácil&quot; es haciendo la votación &quot;manualmente&quot;, como se hace a partir del minuto 5:45 del video de Ejemplo práctico de emsablajes en Coursera. Digo que es la más fácil porque si hacen la votación mayoritaria sobre las 300 predicciones van a obtener lo que se espera. 
+ 
+Otra opción es: para cada uno de los 3 tipos de modelos, entrenar un ensamble de 100 modelos cada uno. Predecir para cada uno de esos tres ensambles y luego predecir como un ensamble de los 3 ensambles. La cuestión es que la votación mayoritaria al usar los 3 ensambles no necesariamente va a generar el mismo resultado que si hacen la votación mayoritaria directamente sobre los 300 modelos. Entonces, para los que quieran hacer esto, deben hacer ese último cálculo con cuidado. 
+ 
+Para los que quieran hacerlo como ensamble de ensambles, digo que se debe hacer el ensamble final con cuidado por lo siguiente. Supongamos que: 
+ 
+* para los 100 árboles del primer tipo, la votación mayoritaria es: 55% de los modelos predicen que la clase de una observación es &quot;1&quot; 
+* para los 100 árboles del segundo tipo, la votación mayoritaria es: 55% de los modelos predicen que la clase de una observación es &quot;1&quot; 
+* para las 100 regresiones logísticas, la votación mayoritaria es: 10% de los modelos predicen que la clase de una observación es &quot;1&quot; 
+ 
+Si se hace la votación mayoritaria de los 300 modelos, la predicción de esa observación debería ser: (100*55%+100*55%+100*10%)/300 = 40% de los modelos votan porque la predicción debería ser &quot;1&quot;. Es decir, la predicción del ensamble es &quot;0&quot; (dado que menos del 50% de modelos predijo un 1). 
+ 
+Sin embargo, si miramos cada ensamble por separado, el primer ensamble predice &quot;1&quot;, el segundo ensamble predice &quot;1&quot; y el último ensamble predice &quot;0&quot;. Si hago votación mayoritaria sobre esto, la predicción va a ser &quot;1&quot;, lo cual es distinto a si se hace la votación mayoritaria sobre los 300 modelos. 
+</span><span class="s0">#%% 
+# Celda 7</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">### Punto 8 - Votación Ponderada 
+En la celda 8 elabore un ensamble con la metodología de **Votación ponderada** compuesto por 300 muestras bagged para los mismos tres escenarios del punto 7. Evalúe los modelos utilizando las métricas de Accuracy y F1-Score 
+</span><span class="s0">#%% 
+# Celda 8</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">### Punto 9 - Comparación y análisis de resultados 
+En la celda 9 comente sobre los resultados obtenidos con las metodologías usadas en los puntos 7 y 8, compare los resultados y enuncie posibles ventajas o desventajas de cada una de ellas. 
+</span><span class="s0">#%% 
+# Celda 9</span></pre>
+</body>
+</html>
