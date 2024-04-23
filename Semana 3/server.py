@@ -1,8 +1,11 @@
 from flask import Flask
 from flask_restx import Api, Resource
 import joblib
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
 api = Api(app)
 
 parser = api.parser()
@@ -49,4 +52,4 @@ api.add_resource(CarInfo, '/car_info')
 
 # Ejecutar la aplicación
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)
