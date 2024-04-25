@@ -24,11 +24,17 @@ parser.add_argument('Model', type=int, required=True,
 
 
 def process_request(year, mileage, State, Make, Model):
-    modelo_regresion = joblib.load('regresion.pkl')
-    features = [[year, mileage, State, Make, Model]]
-    prediccion = modelo_regresion.predict(features)
-    prediccion_json = prediccion.tolist()
-    return prediccion_json
+    try:
+        print("holis")
+        modelo_regresion = joblib.load('regresion.pkl')
+        print("Tipo de objeto cargado:", type(modelo_regresion))
+        print("¡El modelo se ha cargado correctamente!")
+        features = [[year, mileage, State, Make, Model]]
+        prediccion = modelo_regresion.predict(features)
+        prediccion_json = prediccion.tolist()
+        return prediccion_json
+    except Exception as e:
+        print("Error al cargar el modelo:", e)
 
 
 # Clase para la API
